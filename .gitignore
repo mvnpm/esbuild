@@ -1,0 +1,5 @@
+/target
+*.so
+*.h
+out.js
+.idea
