@@ -1,0 +1,3 @@
+[submodule "esbuild"]
+	path = esbuild
+	url = git@github.com:evanw/esbuild.git

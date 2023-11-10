@@ -1,3 +1,3 @@
-import { PATH } from 'env'
-console.log(`PATH is ${PATH}`)
+import "./test.scss";
+console.log("works right?")
 function noop () {}
