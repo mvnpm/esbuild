@@ -1,22 +1,13 @@
 
-## POC to use esbuild with java and plugins
+## Scss enabled version of esbuild
 
-This is a poc to see if we can use esbuild in java, but more integrated.
-Maybe we can even use esbuild and extend it with Java based plugins.
+This project extends esbuild with a scss plugin.
+The normal cli still works, but it has a scss plugin added.
 
 ### To build
 
 ```cmd
-go build -o libhello.so -buildmode=c-shared hello.go
-chmod -x libhello.so
-
-mvn package
-export LD_LIBRARY_PATH=<full path to this folder>
-
-java -jar target/go-helloworld-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+make platform-all
 ```
 
-### TODO
-* rename this project to not be called helloworld
-* make the go code call java
-* create an interface for the java and go communication
+This is used by esbuild-java for the quarkus web bundler

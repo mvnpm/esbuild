@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/bep/godartsass/v2"
 	"github.com/evanw/esbuild/pkg/api"
@@ -93,5 +96,38 @@ var scssPlugin = api.Plugin{
 
 func main() {
 	osArgs := os.Args[1:]
+	for _, arg := range osArgs {
+		switch {
+		case arg == "--version":
+			fmt.Printf("%s\n", "0.19.5")
+			os.Exit(0)
+		case arg == "--watch":
+			go func() {
+				// This just discards information from stdin because we don't use
+				// it and we can avoid unnecessarily allocating space for it
+				buffer := make([]byte, 512)
+				for {
+					_, err := os.Stdin.Read(buffer)
+					if err != nil {
+
+						// Only exit cleanly if stdin was closed cleanly
+						if err == io.EOF {
+							os.Exit(0)
+						} else {
+							os.Exit(1)
+						}
+					}
+
+					// Some people attempt to keep esbuild's watch mode open by piping
+					// an infinite stream of data to stdin such as with "< /dev/zero".
+					// This will make esbuild spin at 100% CPU. To avoid this, put a
+					// small delay after we read some data from stdin.
+					time.Sleep(4 * time.Millisecond)
+				}
+			}()
+			osArgs = osArgs[1:]
+		}
+
+	}
 	os.Exit(cli.RunWithPlugins(osArgs, []api.Plugin{scssPlugin}))
 }
