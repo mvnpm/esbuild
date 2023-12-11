@@ -40,6 +40,7 @@ func compileSass(inputPath, outputPath string) error {
 		Source:          string(input),
 		OutputStyle:     godartsass.OutputStyleCompressed,
 		SourceSyntax:    sourceSyntax,
+		IncludePaths:    []string{filepath.Dir(inputPath)},
 		EnableSourceMap: true,
 	})
 	if err != nil {
@@ -99,9 +100,9 @@ func main() {
 	for _, arg := range osArgs {
 		switch {
 		case arg == "--version":
-			fmt.Printf("%s\n", "0.19.5")
+			fmt.Printf("%s-scss\n", "0.19.5")
 			os.Exit(0)
-		case arg == "--watch":
+		case arg == "--watch" || arg == "--watch=forever":
 			go func() {
 				// This just discards information from stdin because we don't use
 				// it and we can avoid unnecessarily allocating space for it
