@@ -97,6 +97,7 @@ var scssPlugin = api.Plugin{
 
 func main() {
 	osArgs := os.Args[1:]
+	argsEnd := 0
 	for _, arg := range osArgs {
 		switch {
 		case arg == "--version":
@@ -126,9 +127,12 @@ func main() {
 					time.Sleep(4 * time.Millisecond)
 				}
 			}()
-			osArgs = osArgs[1:]
+			if arg != "--watch" {
+				osArgs = append(osArgs[:argsEnd], osArgs[argsEnd+1:]...)
+				osArgs = append(osArgs, "--watch")
+			}
 		}
-
+		argsEnd++
 	}
 	os.Exit(cli.RunWithPlugins(osArgs, []api.Plugin{scssPlugin}))
 }
