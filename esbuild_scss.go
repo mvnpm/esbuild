@@ -20,6 +20,16 @@ func compileSass(inputPath, outputPath string) error {
 		return err
 	}
 
+	// add sass to the path
+	current, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	bin := filepath.Dir(current)
+	pack := filepath.Dir(bin)
+	dartSass := filepath.Join(filepath.Dir(pack), "dart-sass")
+	os.Setenv("PATH", os.Getenv("PATH")+":"+dartSass)
+
 	extension := filepath.Ext(inputPath)
 	var sourceSyntax godartsass.SourceSyntax
 	if extension == ".scss" {
@@ -101,7 +111,7 @@ func main() {
 	for _, arg := range osArgs {
 		switch {
 		case arg == "--version":
-			fmt.Printf("%s-scss\n", "0.19.5")
+			fmt.Printf("%s-scss\n", "0.19.9")
 			os.Exit(0)
 		case arg == "--watch" || arg == "--watch=forever":
 			go func() {
