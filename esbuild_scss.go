@@ -13,17 +13,17 @@ import (
 	"github.com/evanw/esbuild/pkg/cli"
 )
 
-func compileSass(inputPath, outputPath string) error {
+func compileSass(inputPath, outputPath string) (string, error) {
 	// Read the input Sass/SCSS file
 	input, err := os.ReadFile(inputPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// add sass to the path
 	current, err := os.Executable()
 	if err != nil {
-		return err
+		return "", err
 	}
 	bin := filepath.Dir(current)
 	pack := filepath.Dir(bin)
@@ -41,7 +41,7 @@ func compileSass(inputPath, outputPath string) error {
 	// Create a Dart Sass compiler
 	compiler, err := godartsass.Start(godartsass.Options{})
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer compiler.Close()
 
@@ -54,16 +54,10 @@ func compileSass(inputPath, outputPath string) error {
 		EnableSourceMap: true,
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	// Write the compiled CSS to the output file
-	err = os.WriteFile(outputPath, []byte(output.CSS), 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return output.CSS, nil
 }
 
 var scssPlugin = api.Plugin{
@@ -83,7 +77,7 @@ var scssPlugin = api.Plugin{
 				extension := filepath.Ext(args.Path)
 				filenameWithoutExtension := strings.TrimSuffix(args.Path, extension)
 				outputPath := filenameWithoutExtension + ".css"
-				err := compileSass(args.Path, outputPath)
+				result, err := compileSass(args.Path, outputPath)
 				if err != nil {
 					return api.OnLoadResult{}, err
 				}
@@ -91,16 +85,7 @@ var scssPlugin = api.Plugin{
 				// Modify the import path to the generated CSS file
 				args.Path = outputPath
 
-				// Record the generated CSS as a dependency
-				build.OnResolve(api.OnResolveOptions{
-					Namespace: "file",
-					Filter:    outputPath,
-				}, func(args api.OnResolveArgs) (api.OnResolveResult, error) {
-					return api.OnResolveResult{Path: outputPath, External: true}, nil
-				})
-
-				result := ""
-				return api.OnLoadResult{Contents: &result}, nil
+				return api.OnLoadResult{Contents: &result, Loader: api.LoaderCSS}, nil
 			})
 	},
 }
