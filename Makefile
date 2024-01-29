@@ -32,7 +32,7 @@ download-win:
 build-win32:
 	CGO_ENABLED=0 GOOS="$(GOOS)" GOARCH="$(GOARCH)" go build $(GO_FLAGS) -o "build/$(BUILDDIR)/package/esbuild.exe" ./esbuild_scss.go
 	@$(MAKE) --no-print-directory GOOS="$(GOOS)" GOARCH="$(ARCH)" BUILDDIR="build/$(BUILDDIR)/package" download-win
-	tar -czf "build/$(BUILDDIR)-$(VERSION).tgz" --directory "build/$(BUILDDIR)" package
+	tar -czf "build/mvnpm-esbuild-$(BUILDDIR)-$(VERSION).tgz" --directory "build/$(BUILDDIR)" package
 
 platform-win32-x64:
 	@$(MAKE) --no-print-directory GOOS=windows GOARCH=amd64 ARCH=x64 BUILDDIR=win32-x64 build-win32
@@ -49,7 +49,7 @@ build-platform:
 	@test -n "$(BUILDDIR)" || (echo "The environment variable BUILDDIR must be provided" && false)
 	CGO_ENABLED=0 GOOS="$(GOOS)" GOARCH="$(GOARCH)" go build $(GO_FLAGS) -o "build/$(BUILDDIR)/package/bin/esbuild" ./esbuild_scss.go
 	@$(MAKE) --no-print-directory GOOS="$(GOOS)" GOARCH="$(ARCH)" BUILDDIR="build/$(BUILDDIR)" download-nix
-	tar -czf "build/$(BUILDDIR)-$(VERSION).tgz" --directory "build/$(BUILDDIR)" package dart-sass
+	tar -czf "build/mvnpm-esbuild-$(BUILDDIR)-$(VERSION).tgz" --directory "build/$(BUILDDIR)" package dart-sass
 
 ## Define the build targets for each platform.
 platform-darwin-x64:
