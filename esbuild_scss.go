@@ -13,12 +13,18 @@ import (
 	"github.com/evanw/esbuild/pkg/cli"
 )
 
-type NodeModulesImportResolver struct{}
+type NodeModulesImportResolver struct{
+	build api.PluginBuild
+}
 
 func (resolver NodeModulesImportResolver) CanonicalizeURL(url string) (string, error) {
 	var filePath = url
 	if strings.HasSuffix(url, "scss") {
-		filePath = filepath.Join("node_modules", url)
+		result := resolver.build.Resolve(url, api.ResolveOptions{
+							Kind:      api.ResolveCSSImportRule,
+							ResolveDir: ".",
+						})
+		filePath = result.Path
 	} else {
 		packagePath, fileName := filepath.Split(url)
 		filePath = filepath.Join(packagePath, "_"+fileName+".scss")
@@ -55,7 +61,7 @@ func (resolver NodeModulesImportResolver) Load(canonicalizedURL string) (godarts
 	}, nil
 }
 
-func compileSass(inputPath, outputPath string) (string, error) {
+func compileSass(inputPath, outputPath string, build api.PluginBuild) (string, error) {
 	// Read the input Sass/SCSS file
 	input, err := os.ReadFile(inputPath)
 	if err != nil {
@@ -88,7 +94,9 @@ func compileSass(inputPath, outputPath string) (string, error) {
 		SourceSyntax:    sourceSyntax,
 		IncludePaths:    []string{filepath.Dir(inputPath)},
 		EnableSourceMap: true,
-		ImportResolver:  NodeModulesImportResolver{},
+		ImportResolver:  NodeModulesImportResolver{
+			build,
+		},
 	})
 	if err != nil {
 		return "", err
@@ -111,28 +119,13 @@ func findSourceSyntax(inputPath string) godartsass.SourceSyntax {
 var scssPlugin = api.Plugin{
 	Name: "sass-loader",
 	Setup: func(build api.PluginBuild) {
-		build.OnResolve(api.OnResolveOptions{Filter: `^.*(scss|sass)$`},
-			func(args api.OnResolveArgs) (api.OnResolveResult, error) {
-				if _, err := os.Stat(args.Path); os.IsNotExist(err) {
-					return api.OnResolveResult{
-						Path:      filepath.Join(args.ResolveDir, "node_modules", args.Path),
-						Namespace: "scss",
-					}, nil
-				}
-
-				return api.OnResolveResult{
-					Path:      args.Path,
-					Namespace: "scss",
-				}, nil
-			})
-
-		build.OnLoad(api.OnLoadOptions{Filter: `.*`, Namespace: "scss"},
+		build.OnLoad(api.OnLoadOptions{Filter: `^.*(scss|sass)$`},
 			func(args api.OnLoadArgs) (api.OnLoadResult, error) {
 				// Compile the Sass/SCSS file to CSS
 				extension := filepath.Ext(args.Path)
 				filenameWithoutExtension := strings.TrimSuffix(args.Path, extension)
 				outputPath := filenameWithoutExtension + ".css"
-				result, err := compileSass(args.Path, outputPath)
+				result, err := compileSass(args.Path, outputPath, build)
 				if err != nil {
 					return api.OnLoadResult{}, err
 				}
