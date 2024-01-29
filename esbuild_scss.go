@@ -13,6 +13,48 @@ import (
 	"github.com/evanw/esbuild/pkg/cli"
 )
 
+type NodeModulesImportResolver struct{}
+
+func (resolver NodeModulesImportResolver) CanonicalizeURL(url string) (string, error) {
+	var filePath = url
+	if strings.HasSuffix(url, "scss") {
+		filePath = filepath.Join("node_modules", url)
+	} else {
+		packagePath, fileName := filepath.Split(url)
+		filePath = filepath.Join(packagePath, "_"+fileName+".scss")
+	}
+
+	if strings.HasPrefix(filePath, "file:") {
+		return filePath, nil
+	}
+
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "", nil
+	}
+
+	path, err := filepath.Abs(filePath)
+	if err != nil {
+		return "", fmt.Errorf("Error converting relative path to absolute path", err)
+	}
+
+	return "file://" + path, nil
+}
+
+func (resolver NodeModulesImportResolver) Load(canonicalizedURL string) (godartsass.Import, error) {
+	path := canonicalizedURL[7:]
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return godartsass.Import{}, err
+	}
+
+	// Return the parsed import data
+	return godartsass.Import{
+		Content:      string(content),
+		SourceSyntax: findSourceSyntax(path),
+	}, nil
+}
+
 func compileSass(inputPath, outputPath string) (string, error) {
 	// Read the input Sass/SCSS file
 	input, err := os.ReadFile(inputPath)
@@ -30,13 +72,7 @@ func compileSass(inputPath, outputPath string) (string, error) {
 	dartSass := filepath.Join(filepath.Dir(pack), "dart-sass")
 	os.Setenv("PATH", os.Getenv("PATH")+":"+dartSass)
 
-	extension := filepath.Ext(inputPath)
-	var sourceSyntax godartsass.SourceSyntax
-	if extension == ".scss" {
-		sourceSyntax = godartsass.SourceSyntaxSCSS
-	} else {
-		sourceSyntax = godartsass.SourceSyntaxSASS
-	}
+	sourceSyntax := findSourceSyntax(inputPath)
 
 	// Create a Dart Sass compiler
 	compiler, err := godartsass.Start(godartsass.Options{})
@@ -52,6 +88,7 @@ func compileSass(inputPath, outputPath string) (string, error) {
 		SourceSyntax:    sourceSyntax,
 		IncludePaths:    []string{filepath.Dir(inputPath)},
 		EnableSourceMap: true,
+		ImportResolver:  NodeModulesImportResolver{},
 	})
 	if err != nil {
 		return "", err
@@ -60,11 +97,29 @@ func compileSass(inputPath, outputPath string) (string, error) {
 	return output.CSS, nil
 }
 
+func findSourceSyntax(inputPath string) godartsass.SourceSyntax {
+	extension := filepath.Ext(inputPath)
+	var sourceSyntax godartsass.SourceSyntax
+	if extension == ".scss" {
+		sourceSyntax = godartsass.SourceSyntaxSCSS
+	} else {
+		sourceSyntax = godartsass.SourceSyntaxSASS
+	}
+	return sourceSyntax
+}
+
 var scssPlugin = api.Plugin{
 	Name: "sass-loader",
 	Setup: func(build api.PluginBuild) {
 		build.OnResolve(api.OnResolveOptions{Filter: `^.*(scss|sass)$`},
 			func(args api.OnResolveArgs) (api.OnResolveResult, error) {
+				if _, err := os.Stat(args.Path); os.IsNotExist(err) {
+					return api.OnResolveResult{
+						Path:      filepath.Join(args.ResolveDir, "node_modules", args.Path),
+						Namespace: "scss",
+					}, nil
+				}
+
 				return api.OnResolveResult{
 					Path:      args.Path,
 					Namespace: "scss",
