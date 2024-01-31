@@ -29,9 +29,9 @@ download-win:
 	mv dart-sass $(BUILDDIR)
 
 build-win32:
-	CGO_ENABLED=0 GOOS="$(GOOS)" GOARCH="$(GOARCH)" go build $(GO_FLAGS) -o "build/$(BUILDDIR)/package/esbuild.exe" ./esbuild_scss.go
-	@$(MAKE) --no-print-directory GOOS="$(GOOS)" GOARCH="$(ARCH)" BUILDDIR="build/$(BUILDDIR)/package" download-win
-	tar -czf "build/esbuild-$(BUILDDIR)-$(VERSION).tgz" --directory "build/$(BUILDDIR)" package
+	CGO_ENABLED=0 GOOS="$(GOOS)" GOARCH="$(GOARCH)" go build $(GO_FLAGS) -o "build/$(BUILDDIR)/package/bin/esbuild.exe" ./esbuild_scss.go
+	@$(MAKE) --no-print-directory GOOS="$(GOOS)" GOARCH="$(ARCH)" BUILDDIR="build/$(BUILDDIR)" download-win
+	tar -czf "build/esbuild-$(BUILDDIR)-$(VERSION).tgz" --directory "build/$(BUILDDIR)" package dart-sass
 
 platform-win32-x64:
 	@$(MAKE) --no-print-directory GOOS=windows GOARCH=amd64 ARCH=x64 BUILDDIR=win32-x64 build-win32

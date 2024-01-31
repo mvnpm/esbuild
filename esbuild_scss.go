@@ -76,7 +76,7 @@ func compileSass(inputPath, outputPath string, build api.PluginBuild) (string, e
 	bin := filepath.Dir(current)
 	pack := filepath.Dir(bin)
 	dartSass := filepath.Join(filepath.Dir(pack), "dart-sass")
-	os.Setenv("PATH", os.Getenv("PATH")+":"+dartSass)
+	os.Setenv("PATH", os.Getenv("PATH")+string(os.PathListSeparator)+dartSass)
 
 	sourceSyntax := findSourceSyntax(inputPath)
 
