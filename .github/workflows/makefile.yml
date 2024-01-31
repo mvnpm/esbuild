@@ -16,8 +16,12 @@ jobs:
       with:
           submodules: recursive
       
-    - name: Setup Go ${{ matrix.go-version }}
+    - name: Setup Go
       uses: actions/setup-go@v4
 
     - name: build
       run: make platform-all
+
+    - name: release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
