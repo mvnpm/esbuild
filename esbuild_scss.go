@@ -144,7 +144,7 @@ func main() {
 	for _, arg := range osArgs {
 		switch {
 		case arg == "--version":
-			fmt.Printf("%s-scss\n", "0.19.9")
+			fmt.Printf("0.19.9-mvnpm-0.0.5")
 			os.Exit(0)
 		case arg == "--watch" || arg == "--watch=forever":
 			go func() {
