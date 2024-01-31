@@ -1,4 +1,4 @@
-module hello
+module esbuild
 
 go 1.20
 
