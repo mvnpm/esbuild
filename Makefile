@@ -5,13 +5,12 @@ VERSION=0.19.9-mvnpm-0.0.5
 SASS_VERSION=1.69.7
 
 platform-all:
-	@$(MAKE) --no-print-directory -j4 \
+	@$(MAKE) --no-print-directory -j1 \
 		platform-darwin-arm64 \
 		platform-darwin-x64 \
 		platform-linux-arm64 \
 		platform-linux-ia32 \
 		platform-linux-x64 \
-		platform-wasm \
 		platform-win32-ia32 \
 		platform-win32-x64
 
