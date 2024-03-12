@@ -75,13 +75,14 @@ func compileSass(inputPath, outputPath string, build api.PluginBuild) (string, e
 	}
 	bin := filepath.Dir(current)
 	pack := filepath.Dir(bin)
-	dartSass := filepath.Join(filepath.Dir(pack), "dart-sass")
-	os.Setenv("PATH", os.Getenv("PATH")+string(os.PathListSeparator)+dartSass)
+	dartSass := filepath.Join(filepath.Dir(pack), "dart-sass", "sass")
 
 	sourceSyntax := findSourceSyntax(inputPath)
 
 	// Create a Dart Sass compiler
-	compiler, err := godartsass.Start(godartsass.Options{})
+	compiler, err := godartsass.Start(godartsass.Options{
+		DartSassEmbeddedFilename: dartSass,
+	})
 	if err != nil {
 		return "", err
 	}
