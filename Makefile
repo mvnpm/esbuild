@@ -1,7 +1,7 @@
 ## Platform Makefile
 ##
 
-VERSION=0.20.1-mvnpm-0.0.6
+VERSION=0.20.1-mvnpm-0.0.7
 SASS_VERSION=1.69.7
 
 platform-all:
