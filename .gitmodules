@@ -1,4 +1,0 @@
-[submodule "esbuild"]
-	path = esbuild
-	url = git@github.com:edewit/esbuild.git
-	branch = cli-api
