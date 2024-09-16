@@ -1,8 +1,8 @@
 ## Platform Makefile
 ##
 
-VERSION=0.20.1-mvnpm-0.0.7
-SASS_VERSION=1.69.7
+VERSION=0.23.0-mvnpm-0.0.8
+SASS_VERSION=1.78.0
 
 platform-all:
 	@$(MAKE) --no-print-directory -j1 \
