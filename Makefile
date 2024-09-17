@@ -1,7 +1,7 @@
 ## Platform Makefile
 ##
 
-VERSION=0.23.0-mvnpm-0.0.8
+VERSION=$(shell cat version.txt)
 SASS_VERSION=1.78.0
 
 platform-all:

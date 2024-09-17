@@ -11,9 +11,13 @@ import (
 	"github.com/bep/godartsass/v2"
 	"github.com/evanw/esbuild/pkg/api"
 	"github.com/evanw/esbuild/pkg/cli"
+
+	_ "embed"
 )
 
-type NodeModulesImportResolver struct{
+//go:embed version.txt
+var version string
+type NodeModulesImportResolver struct {
 	build api.PluginBuild
 }
 
@@ -21,9 +25,9 @@ func (resolver NodeModulesImportResolver) CanonicalizeURL(url string) (string, e
 	var filePath = url
 	if strings.HasSuffix(url, "scss") {
 		result := resolver.build.Resolve(url, api.ResolveOptions{
-							Kind:      api.ResolveCSSImportRule,
-							ResolveDir: ".",
-						})
+			Kind:       api.ResolveCSSImportRule,
+			ResolveDir: ".",
+		})
 		filePath = result.Path
 	} else {
 		packagePath, fileName := filepath.Split(url)
@@ -95,7 +99,7 @@ func compileSass(inputPath, outputPath string, build api.PluginBuild) (string, e
 		SourceSyntax:    sourceSyntax,
 		IncludePaths:    []string{filepath.Dir(inputPath)},
 		EnableSourceMap: true,
-		ImportResolver:  NodeModulesImportResolver{
+		ImportResolver: NodeModulesImportResolver{
 			build,
 		},
 	})
@@ -145,7 +149,7 @@ func main() {
 	for _, arg := range osArgs {
 		switch {
 		case arg == "--version":
-			fmt.Printf("0.20.1-mvnpm-0.0.7")
+			fmt.Printf("%s", version)
 			os.Exit(0)
 		case arg == "--watch" || arg == "--watch=forever":
 			go func() {
