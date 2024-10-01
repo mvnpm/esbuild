@@ -19,39 +19,71 @@ import (
 var version string
 
 type NodeModulesImportResolver struct {
-	build api.PluginBuild
+	build        api.PluginBuild
+	inputPath    string
+	includeFiles []string
 }
 
-func (resolver NodeModulesImportResolver) CanonicalizeURL(url string) (string, error) {
-	var filePath = url
-	if !strings.HasSuffix(url, "scss") {
-		filePath = filePath + ".scss"
-	}
-	result := resolver.build.Resolve(filePath, api.ResolveOptions{
+type SassCompileResult struct {
+	output       string
+	includeFiles []string
+	err          error
+}
+
+func NodeResolve(filePath string, build api.PluginBuild) (string, []api.Message) {
+	result := build.Resolve(filePath, api.ResolveOptions{
 		Kind:       api.ResolveCSSImportRule,
 		ResolveDir: ".",
 	})
-	if result.Errors != nil {
-		packagePath, fileName := filepath.Split(url)
-		filePath = filepath.Join(packagePath, "_"+fileName+".scss")
-	} else {
-		filePath = result.Path
+	return result.Path, result.Errors
+}
+
+func LocalFile(dir string, filePath string) (string, error) {
+	localFilePath := filepath.Join(dir, filePath)
+	if _, err := os.Stat(localFilePath); os.IsNotExist(err) {
+		return "", err
+	}
+	return localFilePath, nil
+}
+
+func LocalOrNodeResolve(filePath string, dir string, build api.PluginBuild) (string, error) {
+	nodeResult, errs := NodeResolve(filePath, build)
+
+	if errs == nil {
+		return nodeResult, nil
 	}
 
-	if strings.HasPrefix(filePath, "file:") {
-		return filePath, nil
+	localFilePath, err := LocalFile(dir, filePath)
+
+	if err == nil {
+		return localFilePath, nil
 	}
 
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return "", nil
+	return "", fmt.Errorf("not found")
+}
+
+func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (string, error) {
+	dir, _ := filepath.Split(resolver.inputPath)
+	if !strings.HasSuffix(filePath, "scss") {
+		filePath = filePath + ".scss"
 	}
 
-	path, err := filepath.Abs(filePath)
-	if err != nil {
-		return "", fmt.Errorf("error converting relative path to absolute path %s", err)
+	file, err := LocalOrNodeResolve(filePath, dir, resolver.build)
+	if err == nil {
+		resolver.includeFiles = append(resolver.includeFiles, file)
+		return "file://" + file, nil
 	}
 
-	return "file://" + path, nil
+	packagePath, fileName := filepath.Split(filePath)
+	fileWithPrefix := filepath.Join(packagePath, "_"+fileName)
+
+	filePrefix, err := LocalOrNodeResolve(fileWithPrefix, dir, resolver.build)
+	if err == nil {
+		resolver.includeFiles = append(resolver.includeFiles, filePrefix)
+		return "file://" + filePrefix, nil
+	}
+
+	return "", err
 }
 
 func (resolver NodeModulesImportResolver) Load(canonicalizedURL string) (godartsass.Import, error) {
@@ -69,17 +101,17 @@ func (resolver NodeModulesImportResolver) Load(canonicalizedURL string) (godarts
 	}, nil
 }
 
-func compileSass(inputPath, outputPath string, build api.PluginBuild) (string, error) {
+func compileSass(inputPath string, build api.PluginBuild) SassCompileResult {
 	// Read the input Sass/SCSS file
 	input, err := os.ReadFile(inputPath)
 	if err != nil {
-		return "", err
+		return SassCompileResult{err: err}
 	}
 
 	// add sass to the path
 	current, err := os.Executable()
 	if err != nil {
-		return "", err
+		return SassCompileResult{err: err}
 	}
 	bin := filepath.Dir(current)
 	pack := filepath.Dir(bin)
@@ -92,10 +124,15 @@ func compileSass(inputPath, outputPath string, build api.PluginBuild) (string, e
 		DartSassEmbeddedFilename: dartSass,
 	})
 	if err != nil {
-		return "", err
+		return SassCompileResult{err: err}
 	}
 	defer compiler.Close()
 
+	resolver := NodeModulesImportResolver{
+		build,
+		inputPath,
+		[]string{},
+	}
 	// Compile the Sass/SCSS to CSS
 	output, err := compiler.Execute(godartsass.Args{
 		Source:          string(input),
@@ -103,15 +140,13 @@ func compileSass(inputPath, outputPath string, build api.PluginBuild) (string, e
 		SourceSyntax:    sourceSyntax,
 		IncludePaths:    []string{filepath.Dir(inputPath)},
 		EnableSourceMap: true,
-		ImportResolver: NodeModulesImportResolver{
-			build,
-		},
+		ImportResolver:  &resolver,
 	})
 	if err != nil {
-		return "", err
+		return SassCompileResult{err: err}
 	}
 
-	return output.CSS, nil
+	return SassCompileResult{output: output.CSS, includeFiles: resolver.includeFiles, err: nil}
 }
 
 func findSourceSyntax(inputPath string) godartsass.SourceSyntax {
@@ -132,15 +167,14 @@ var scssPlugin = api.Plugin{
 				extension := filepath.Ext(args.Path)
 				filenameWithoutExtension := strings.TrimSuffix(args.Path, extension)
 				outputPath := filenameWithoutExtension + ".css"
-				result, err := compileSass(args.Path, outputPath, build)
-				if err != nil {
-					return api.OnLoadResult{}, err
+				result := compileSass(args.Path, build)
+				if result.err != nil {
+					return api.OnLoadResult{}, result.err
 				}
 
 				// Modify the import path to the generated CSS file
 				args.Path = outputPath
-
-				return api.OnLoadResult{Contents: &result, Loader: api.LoaderCSS}, nil
+				return api.OnLoadResult{Contents: &result.output, Loader: api.LoaderCSS, WatchFiles: result.includeFiles}, nil
 			})
 	},
 }
