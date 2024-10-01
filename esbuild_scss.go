@@ -17,21 +17,25 @@ import (
 
 //go:embed version.txt
 var version string
+
 type NodeModulesImportResolver struct {
 	build api.PluginBuild
 }
 
 func (resolver NodeModulesImportResolver) CanonicalizeURL(url string) (string, error) {
 	var filePath = url
-	if strings.HasSuffix(url, "scss") {
-		result := resolver.build.Resolve(url, api.ResolveOptions{
-			Kind:       api.ResolveCSSImportRule,
-			ResolveDir: ".",
-		})
-		filePath = result.Path
-	} else {
+	if !strings.HasSuffix(url, "scss") {
+		filePath = filePath + ".scss"
+	}
+	result := resolver.build.Resolve(filePath, api.ResolveOptions{
+		Kind:       api.ResolveCSSImportRule,
+		ResolveDir: ".",
+	})
+	if result.Errors != nil {
 		packagePath, fileName := filepath.Split(url)
 		filePath = filepath.Join(packagePath, "_"+fileName+".scss")
+	} else {
+		filePath = result.Path
 	}
 
 	if strings.HasPrefix(filePath, "file:") {
@@ -44,7 +48,7 @@ func (resolver NodeModulesImportResolver) CanonicalizeURL(url string) (string, e
 
 	path, err := filepath.Abs(filePath)
 	if err != nil {
-		return "", fmt.Errorf("Error converting relative path to absolute path", err)
+		return "", fmt.Errorf("error converting relative path to absolute path %s", err)
 	}
 
 	return "file://" + path, nil
@@ -112,10 +116,8 @@ func compileSass(inputPath, outputPath string, build api.PluginBuild) (string, e
 
 func findSourceSyntax(inputPath string) godartsass.SourceSyntax {
 	extension := filepath.Ext(inputPath)
-	var sourceSyntax godartsass.SourceSyntax
-	if extension == ".scss" {
-		sourceSyntax = godartsass.SourceSyntaxSCSS
-	} else {
+	var sourceSyntax = godartsass.SourceSyntaxSCSS
+	if extension == ".sass" {
 		sourceSyntax = godartsass.SourceSyntaxSASS
 	}
 	return sourceSyntax
