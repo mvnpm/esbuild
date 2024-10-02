@@ -68,6 +68,10 @@ func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (str
 		filePath = filePath + ".scss"
 	}
 
+	if (strings.HasPrefix(filePath, "file://")) {
+		filePath = filePath[7:]
+	}
+
 	file, err := LocalOrNodeResolve(filePath, dir, resolver.build)
 	if err == nil {
 		resolver.includeFiles = append(resolver.includeFiles, file)
