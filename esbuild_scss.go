@@ -94,9 +94,12 @@ func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (str
 }
 
 func (resolver NodeModulesImportResolver) Load(canonicalizedURL string) (godartsass.Import, error) {
-	path := canonicalizedURL[7:]
+	u, err := url.Parse(canonicalizedURL)
+	if err == nil && u.Scheme == "file" {
+		canonicalizedURL = u.Path
+	}
 
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(canonicalizedURL)
 	if err != nil {
 		return godartsass.Import{}, err
 	}
@@ -104,7 +107,7 @@ func (resolver NodeModulesImportResolver) Load(canonicalizedURL string) (godarts
 	// Return the parsed import data
 	return godartsass.Import{
 		Content:      string(content),
-		SourceSyntax: findSourceSyntax(path),
+		SourceSyntax: findSourceSyntax(canonicalizedURL),
 	}, nil
 }
 
