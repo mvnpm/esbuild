@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,8 +69,10 @@ func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (str
 		filePath = filePath + ".scss"
 	}
 
-	if (strings.HasPrefix(filePath, "file://")) {
-		filePath = filePath[7:]
+	u, err := url.Parse(filePath)
+	if err == nil && u.Scheme == "file" {
+		filePath = u.Path
+		dir = ""
 	}
 
 	file, err := LocalOrNodeResolve(filePath, dir, resolver.build)
