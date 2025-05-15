@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -90,7 +91,7 @@ func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (str
 		return "file://" + filePrefix, nil
 	}
 
-	return "", err
+	return "", fmt.Errorf("failed to canonicalize URL '%s': %w", filePath, err)
 }
 
 func (resolver NodeModulesImportResolver) Load(canonicalizedURL string) (godartsass.Import, error) {
@@ -101,7 +102,7 @@ func (resolver NodeModulesImportResolver) Load(canonicalizedURL string) (godarts
 
 	content, err := os.ReadFile(canonicalizedURL)
 	if err != nil {
-		return godartsass.Import{}, err
+		return godartsass.Import{}, fmt.Errorf("failed to read file '%s': %w", canonicalizedURL, err)
 	}
 
 	// Return the parsed import data
@@ -115,13 +116,13 @@ func compileSass(inputPath string, build api.PluginBuild) SassCompileResult {
 	// Read the input Sass/SCSS file
 	input, err := os.ReadFile(inputPath)
 	if err != nil {
-		return SassCompileResult{err: err}
+		return SassCompileResult{err: fmt.Errorf("failed to read input file '%s': %w", inputPath, err)}
 	}
 
 	// add sass to the path
 	current, err := os.Executable()
 	if err != nil {
-		return SassCompileResult{err: err}
+		return SassCompileResult{err: fmt.Errorf("failed to get executable path: %w", err)}
 	}
 	bin := filepath.Dir(current)
 	pack := filepath.Dir(bin)
@@ -134,7 +135,7 @@ func compileSass(inputPath string, build api.PluginBuild) SassCompileResult {
 		DartSassEmbeddedFilename: dartSass,
 	})
 	if err != nil {
-		return SassCompileResult{err: err}
+		return SassCompileResult{err: fmt.Errorf("failed to start Dart Sass compiler: %w", err)}
 	}
 	defer compiler.Close()
 
@@ -153,7 +154,7 @@ func compileSass(inputPath string, build api.PluginBuild) SassCompileResult {
 		ImportResolver:  &resolver,
 	})
 	if err != nil {
-		return SassCompileResult{err: err}
+		return SassCompileResult{err: fmt.Errorf("failed to execute Dart Sass compilation: %w", err)}
 	}
 
 	return SassCompileResult{output: output.CSS, includeFiles: resolver.includeFiles, err: nil}
@@ -179,12 +180,56 @@ var scssPlugin = api.Plugin{
 				outputPath := filenameWithoutExtension + ".css"
 				result := compileSass(args.Path, build)
 				if result.err != nil {
-					return api.OnLoadResult{}, result.err
+					return api.OnLoadResult{}, fmt.Errorf("failed to compile Sass file '%s': %w", args.Path, result.err)
 				}
 
 				// Modify the import path to the generated CSS file
 				args.Path = outputPath
 				return api.OnLoadResult{Contents: &result.output, Loader: api.LoaderCSS, WatchFiles: result.includeFiles}, nil
+			})
+	},
+}
+
+var tailwindPlugin = api.Plugin{
+	Name: "tailwind-loader",
+	Setup: func(build api.PluginBuild) {
+		build.OnLoad(api.OnLoadOptions{Filter: `\.css$`},
+			func(args api.OnLoadArgs) (api.OnLoadResult, error) {
+				content, err := os.ReadFile(args.Path)
+				if err != nil {
+					return api.OnLoadResult{}, fmt.Errorf("to load css file from '%s': %w", args.Path, err)
+				}
+				cssContent := string(content)
+				if strings.Contains(cssContent, "tailwind") {
+
+					// Create a temporary input file with the CSS content
+					tempDir := os.TempDir()
+					outputPath := filepath.Join(tempDir, "tailwind.output.css")
+
+					cmd := exec.Command("tailwindcss",
+						"-i", args.Path,
+						"-o", outputPath,
+						"--minify",
+					)
+
+					// Run the Tailwind CLI
+					output, err := cmd.CombinedOutput()
+					if err != nil {
+						return api.OnLoadResult{}, fmt.Errorf("failed to run tailwindcss on '%s': %v\n%s", args.Path, err, string(output))
+					}
+
+					cssContent, err := os.ReadFile(outputPath)
+					if err != nil {
+						return api.OnLoadResult{}, fmt.Errorf("failed to read generated tailwind css from '%s': %w", outputPath, err)
+					}
+
+					// Clean up the temporary output file
+					os.Remove(outputPath)
+
+					cssContentStr := string(cssContent)
+					return api.OnLoadResult{Contents: &cssContentStr, Loader: api.LoaderCSS, WatchFiles: []string{"tailwind.config.js"}}, nil
+				}
+				return api.OnLoadResult{Contents: &cssContent, Loader: api.LoaderCSS}, nil
 			})
 	},
 }
@@ -228,5 +273,5 @@ func main() {
 		}
 		argsEnd++
 	}
-	os.Exit(cli.RunWithPlugins(osArgs, []api.Plugin{scssPlugin}))
+	os.Exit(cli.RunWithPlugins(osArgs, []api.Plugin{scssPlugin, tailwindPlugin}))
 }
