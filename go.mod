@@ -1,14 +1,16 @@
 module esbuild
 
-go 1.20
+go 1.24.0
+
+toolchain go1.24.5
 
 require (
-	github.com/bep/godartsass/v2 v2.0.0
-	github.com/evanw/esbuild v0.23.0
+	github.com/bep/godartsass/v2 v2.5.0
+	github.com/evanw/esbuild v0.25.9
 )
 
 require (
 	github.com/cli/safeexec v1.0.1 // indirect
-	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
-	google.golang.org/protobuf v1.30.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
+	google.golang.org/protobuf v1.36.8 // indirect
 )
