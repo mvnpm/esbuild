@@ -65,9 +65,6 @@ func LocalOrNodeResolve(filePath string, dir string, build api.PluginBuild) (str
 
 func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (string, error) {
 	dir, _ := filepath.Split(resolver.inputPath)
-	if !strings.HasSuffix(filePath, "scss") {
-		filePath = filePath + ".scss"
-	}
 
 	u, err := url.Parse(filePath)
 	if err == nil && u.Scheme == "file" {
@@ -77,20 +74,61 @@ func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (str
 
 	file, err := LocalOrNodeResolve(filePath, dir, resolver.build)
 	if err == nil {
+		info, err := os.Stat(file)
 		resolver.includeFiles = append(resolver.includeFiles, file)
+		if err == nil && info.IsDir() {
+			return resolver.resolveDirectoryIndex(file, dir)
+		}
 		return "file://" + file, nil
 	}
 
-	packagePath, fileName := filepath.Split(filePath)
-	fileWithPrefix := filepath.Join(packagePath, "_"+fileName)
-
-	filePrefix, err := LocalOrNodeResolve(fileWithPrefix, dir, resolver.build)
+	dirIndex, err := resolver.resolveDirectoryIndex(filePath, dir)
 	if err == nil {
-		resolver.includeFiles = append(resolver.includeFiles, filePrefix)
-		return "file://" + filePrefix, nil
+		return dirIndex, nil
+	}
+
+	fileVariations, err := resolver.resolveFileVariations(filePath, dir)
+	if err == nil {
+		return fileVariations, nil
 	}
 
 	return "", err
+}
+
+func (resolver *NodeModulesImportResolver) resolveDirectoryIndex(dirPath, baseDir string) (string, error) {
+	indexPath := filepath.Join(dirPath, "index")
+	return resolver.resolveFileVariations(indexPath, baseDir)
+}
+
+func (resolver *NodeModulesImportResolver) resolveFileVariations(filePath, dir string) (string, error) {
+	packagePath, fileName := filepath.Split(filePath)
+	
+	// Try with .scss extension if not already present
+	if !strings.HasSuffix(fileName, ".scss") {
+		fileWithExtension := filepath.Join(packagePath, fileName+".scss")
+		resolvedFile, err := LocalOrNodeResolve(fileWithExtension, dir, resolver.build)
+		if err == nil {
+			resolver.includeFiles = append(resolver.includeFiles, resolvedFile)
+			return "file://" + resolvedFile, nil
+		}
+	}
+
+	// Try with _ prefix (partial file)
+	var targetFileName string
+	if strings.HasSuffix(fileName, ".scss") {
+		targetFileName = "_" + fileName
+	} else {
+		targetFileName = "_" + fileName + ".scss"
+	}
+	
+	fileWithPrefix := filepath.Join(packagePath, targetFileName)
+	resolvedFilePrefix, err := LocalOrNodeResolve(fileWithPrefix, dir, resolver.build)
+	if err == nil {
+		resolver.includeFiles = append(resolver.includeFiles, resolvedFilePrefix)
+		return "file://" + resolvedFilePrefix, nil
+	}
+
+	return "", fmt.Errorf("failed to canonicalize URL '%s'", filePath)
 }
 
 func (resolver NodeModulesImportResolver) Load(canonicalizedURL string) (godartsass.Import, error) {
