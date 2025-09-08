@@ -6,12 +6,12 @@ SASS_VERSION=1.92.1
 
 platform-all:
 	@$(MAKE) --no-print-directory -j1 \
-		platform-darwin-arm64 \
-		platform-darwin-x64 \
+		platform-macos-arm64 \
+		platform-macos-x64 \
 		platform-linux-arm64 \
-		platform-linux-ia32 \
+		platform-linux-riscv64 \
 		platform-linux-x64 \
-		platform-win32-ia32 \
+		platform-win32-arm64 \
 		platform-win32-x64
 
 NAME = $(GOOS)
@@ -34,13 +34,10 @@ build-win32:
 	tar -czf "build/esbuild-$(BUILDDIR)-$(VERSION).tgz" --directory "build/$(BUILDDIR)" package dart-sass
 
 platform-win32-x64:
-	@$(MAKE) --no-print-directory GOOS=windows GOARCH=amd64 ARCH=x64 BUILDDIR=win32-x64 build-win32
-
-platform-win32-ia32:
-	@$(MAKE) --no-print-directory GOOS=windows GOARCH=386 ARCH=ia32 BUILDDIR=win32-ia32 build-win32
+	@$(MAKE) --no-print-directory GOOS=windows GOARCH=amd64 ARCH=x64 BUILDDIR=windows-x64 build-win32
 
 platform-win32-arm64:
-	@$(MAKE) --no-print-directory GOOS=windows GOARCH=arm64 BUILDDIR=win32-arm64 build-win32
+	@$(MAKE) --no-print-directory GOOS=windows GOARCH=arm64 ARCH=arm64 BUILDDIR=windows-arm64 build-win32
 
 build-platform:
 	@test -n "$(GOOS)" || (echo "The environment variable GOOS must be provided" && false)
@@ -51,11 +48,11 @@ build-platform:
 	tar -czf "build/esbuild-$(BUILDDIR)-$(VERSION).tgz" --directory "build/$(BUILDDIR)" package dart-sass
 
 ## Define the build targets for each platform.
-platform-darwin-x64:
-	@$(MAKE) --no-print-directory GOOS=darwin GOARCH=amd64 ARCH=x64 BUILDDIR=darwin-x64 build-platform
+platform-macos-x64:
+	@$(MAKE) --no-print-directory GOOS=darwin GOARCH=amd64 ARCH=x64 BUILDDIR=macos-x64 build-platform
 
-platform-darwin-arm64:
-	@$(MAKE) --no-print-directory GOOS=darwin GOARCH=arm64 ARCH=arm64 BUILDDIR=darwin-arm64 build-platform
+platform-macos-arm64:
+	@$(MAKE) --no-print-directory GOOS=darwin GOARCH=arm64 ARCH=arm64 BUILDDIR=macos-arm64 build-platform
 
 platform-freebsd-x64:
 	@$(MAKE) --no-print-directory GOOS=freebsd GOARCH=amd64 ARCH=x64 BUILDDIR=freebsd-x64 build-platform
@@ -72,8 +69,8 @@ platform-openbsd-x64:
 platform-linux-x64:
 	@$(MAKE) --no-print-directory GOOS=linux GOARCH=amd64 ARCH=x64 BUILDDIR=linux-x64 build-platform
 
-platform-linux-ia32:
-	@$(MAKE) --no-print-directory GOOS=linux GOARCH=386 ARCH=ia32 BUILDDIR=linux-ia32 build-platform
+platform-linux-riscv64:
+	@$(MAKE) --no-print-directory GOOS=linux GOARCH=riscv64 ARCH=riscv64 BUILDDIR=linux-riscv64 build-platform
 
 platform-linux-arm:
 	@$(MAKE) --no-print-directory GOOS=linux GOARCH=arm ARCH=arm BUILDDIR=linux-arm build-platform
