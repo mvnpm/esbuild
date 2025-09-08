@@ -2,7 +2,7 @@
 ##
 
 VERSION=$(shell cat version.txt)
-SASS_VERSION=1.78.0
+SASS_VERSION=1.92.1
 
 platform-all:
 	@$(MAKE) --no-print-directory -j1 \
