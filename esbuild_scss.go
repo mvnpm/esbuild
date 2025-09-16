@@ -72,6 +72,16 @@ func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (str
 		dir = ""
 	}
 
+	file, err := LocalOrNodeResolve(filePath, dir, resolver.build)
+	if err == nil {
+		info, err := os.Stat(file)
+		resolver.includeFiles = append(resolver.includeFiles, file)
+		if err == nil && info.IsDir() {
+			return resolver.CanonicalizeURL(file)
+		}
+		return "file://" + file, nil
+	}
+
 	dirIndex, err := resolver.resolveDirectoryIndex(filePath, dir)
 	if err == nil {
 		return dirIndex, nil
@@ -80,16 +90,6 @@ func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (str
 	fileVariations, err := resolver.resolveFileVariations(filePath, dir)
 	if err == nil {
 		return fileVariations, nil
-	}
-
-	file, err := LocalOrNodeResolve(filePath, dir, resolver.build)
-	if err == nil {
-		info, err := os.Stat(file)
-		resolver.includeFiles = append(resolver.includeFiles, file)
-		if err == nil && info.IsDir() {
-			return resolver.resolveDirectoryIndex(file, dir)
-		}
-		return "file://" + file, nil
 	}
 
 	return "", err
