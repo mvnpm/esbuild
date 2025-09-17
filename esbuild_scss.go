@@ -64,16 +64,10 @@ func LocalOrNodeResolve(filePath string, dir string, build api.PluginBuild) (str
 }
 
 func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (string, error) {
-	fmt.Println("input ::", filePath)
 	dir, _ := filepath.Split(resolver.inputPath)
-
-	fmt.Println("the :: ", dir)
 
 	u, err := url.Parse(filePath)
 	if err == nil && u.Scheme == "file" {
-		fmt.Println("parse ::", u.Path)
-	// 	//filePath = u.Path
-	// 	// dir = u.Path
 		filePath = filepath.Base(filePath)
 		dir = filepath.Dir(u.Path)
 		if strings.HasSuffix(u.Path, "/") {
@@ -81,34 +75,22 @@ func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (str
 		}
 	}
 
-
-	fmt.Println("dir1 :: ", dir)
-	fmt.Println("file1 :: ", filePath)
-
 	file, err := LocalOrNodeResolve(filePath, dir, resolver.build)
-
-	fmt.Println("file2 :: ", file)
 
 	if err == nil {
 		info, err := os.Stat(file)
-		// resolver.includeFiles = append(resolver.includeFiles, file)
 		if err == nil && info.IsDir() {
-			fmt.Println("what?", file)
 			return resolver.CanonicalizeURL(file)
 		}
 		return "file://" + file, nil
 	}
 
 	dirIndex, err := resolver.resolveDirectoryIndex(filePath, dir)
-
-	fmt.Println("file2 :: ", dirIndex)
 	if err == nil {
 		return dirIndex, nil
 	}
 
 	fileVariations, err := resolver.resolveFileVariations(filePath, dir)
-	fmt.Println("file3 :: ", fileVariations)
-
 	if err == nil {
 		return fileVariations, nil
 	}
@@ -118,21 +100,14 @@ func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (str
 
 func (resolver *NodeModulesImportResolver) resolveDirectoryIndex(dirPath, baseDir string) (string, error) {
 	indexPath := filepath.Join(dirPath, "index")
-	fmt.Println("indexpath :: ", indexPath)
 	return resolver.resolveFileVariations(indexPath, baseDir)
 }
 
 func (resolver *NodeModulesImportResolver) resolveFileVariations(filePath, dir string) (string, error) {
-	// packagePath, fileName := filepath.Split(filePath)
-	fileName := filePath
-
-	fmt.Println("dir :: ", dir)
-	fmt.Println("file :: ", filePath)
 	
 	// Try with .scss extension if not already present
-	if !strings.HasSuffix(fileName, ".scss") {
-		fileWithExtension := fileName+".scss"
-		// fmt.Println("your kidding", fileWithExtension)
+	if !strings.HasSuffix(filePath, ".scss") {
+		fileWithExtension := filePath+".scss"
 		resolvedFile, err := LocalOrNodeResolve(fileWithExtension, dir, resolver.build)
 		if err == nil {
 			resolver.includeFiles = append(resolver.includeFiles, resolvedFile)
@@ -140,10 +115,8 @@ func (resolver *NodeModulesImportResolver) resolveFileVariations(filePath, dir s
 		}
 	}
 
-	part, name := filepath.Split(fileName)
-	fmt.Println("name :: ", name)
-
 	// Try with _ prefix (partial file)
+	part, name := filepath.Split(filePath)
 	var targetFileName string
 	if strings.HasSuffix(name, ".scss") {
 		targetFileName = "_" + name
@@ -151,35 +124,11 @@ func (resolver *NodeModulesImportResolver) resolveFileVariations(filePath, dir s
 		targetFileName = "_" + name + ".scss"
 	}
 
-	fmt.Println("target :: ", targetFileName)
-
-	fileWithPrefix := filepath.Join(part, targetFileName)
-	// var resolvedFilePrefix string
-	// var err error
-
-	fmt.Println("filewith :: ", fileWithPrefix)
-	fmt.Println("part :: ", part)
-	fmt.Println("dir :: ", dir)
-
-	// fmt.Printf("test :: ", fileWithPrefix)
-
-	// if filepath.IsAbs(packagePath) {
-	// 	if _, statErr := os.Stat(fileWithPrefix); statErr == nil {
-	// 		resolvedFilePrefix = fileWithPrefix
-	// 	} else {
-	// 		err = statErr
-	// 	}
-	// } else {
-	// 	resolvedFilePrefix, err = LocalOrNodeResolve(fileWithPrefix, dir, resolver.build)
-	// }
-
 	if part == "" {
 		part = dir
 	}
 
 	resolvedFilePrefix, err := LocalOrNodeResolve(targetFileName, part, resolver.build)
-
-	fmt.Println("err :: ", err)
 	if err == nil {
 		resolver.includeFiles = append(resolver.includeFiles, resolvedFilePrefix)
 		return "file://" + resolvedFilePrefix, nil
@@ -189,8 +138,6 @@ func (resolver *NodeModulesImportResolver) resolveFileVariations(filePath, dir s
 }
 
 func (resolver NodeModulesImportResolver) Load(canonicalizedURL string) (godartsass.Import, error) {
-	fmt.Println("load :: ", canonicalizedURL)
-
 	u, err := url.Parse(canonicalizedURL)
 	if err == nil && u.Scheme == "file" {
 		canonicalizedURL = u.Path
