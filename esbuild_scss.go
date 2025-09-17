@@ -68,31 +68,28 @@ func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (str
 
 	u, err := url.Parse(filePath)
 	if err == nil && u.Scheme == "file" {
-		filePath = filepath.Base(filePath)
-		dir = filepath.Dir(u.Path)
-		if strings.HasSuffix(u.Path, "/") {
-			dir = filepath.Dir(dir)
+		absTarget, err := filepath.Abs(u.Path)
+		if err != nil {
+			return "", fmt.Errorf("could not get absolute path for target: %w", err)
 		}
+
+		relPath, err := filepath.Rel(filepath.FromSlash(dir), absTarget)
+		if err != nil {
+			return "", fmt.Errorf("could not get relative path for target: %w", err)
+		}
+		filePath = relPath
 	}
 
-	file, err := LocalOrNodeResolve(filePath, dir, resolver.build)
+	fileVariations, err := resolver.resolveFileVariations(filePath, dir)
 
 	if err == nil {
-		info, err := os.Stat(file)
-		if err == nil && info.IsDir() {
-			return resolver.CanonicalizeURL(file)
-		}
-		return "file://" + file, nil
+		return fileVariations, nil
 	}
+
 
 	dirIndex, err := resolver.resolveDirectoryIndex(filePath, dir)
 	if err == nil {
 		return dirIndex, nil
-	}
-
-	fileVariations, err := resolver.resolveFileVariations(filePath, dir)
-	if err == nil {
-		return fileVariations, nil
 	}
 
 	return "", err
@@ -124,11 +121,8 @@ func (resolver *NodeModulesImportResolver) resolveFileVariations(filePath, dir s
 		targetFileName = "_" + name + ".scss"
 	}
 
-	if part == "" {
-		part = dir
-	}
-
-	resolvedFilePrefix, err := LocalOrNodeResolve(targetFileName, part, resolver.build)
+	fileWithPrefix := filepath.Join(part, targetFileName)
+	resolvedFilePrefix, err := LocalOrNodeResolve(fileWithPrefix, dir, resolver.build)
 	if err == nil {
 		resolver.includeFiles = append(resolver.includeFiles, resolvedFilePrefix)
 		return "file://" + resolvedFilePrefix, nil
