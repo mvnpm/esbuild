@@ -101,15 +101,15 @@ func (resolver *NodeModulesImportResolver) resolveDirectoryIndex(dirPath, baseDi
 }
 
 func (resolver *NodeModulesImportResolver) resolveFileVariations(filePath, dir string) (string, error) {
-	
 	// Try with .scss extension if not already present
+	var fileWithExtension = filePath
 	if !strings.HasSuffix(filePath, ".scss") {
-		fileWithExtension := filePath+".scss"
-		resolvedFile, err := LocalOrNodeResolve(fileWithExtension, dir, resolver.build)
-		if err == nil {
-			resolver.includeFiles = append(resolver.includeFiles, resolvedFile)
-			return "file://" + resolvedFile, nil
-		}
+		fileWithExtension = filePath+".scss"
+	}
+	resolvedFile, err := LocalOrNodeResolve(fileWithExtension, dir, resolver.build)
+	if err == nil {
+		resolver.includeFiles = append(resolver.includeFiles, resolvedFile)
+		return "file://" + resolvedFile, nil
 	}
 
 	// Try with _ prefix (partial file)
