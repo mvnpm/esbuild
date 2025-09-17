@@ -68,14 +68,17 @@ func (resolver *NodeModulesImportResolver) CanonicalizeURL(filePath string) (str
 
 	u, err := url.Parse(filePath)
 	if err == nil && u.Scheme == "file" {
-		filePath = u.Path
-		dir = ""
+		filePath = filepath.Base(filePath)
+		dir = filepath.Dir(u.Path)
+		if strings.HasSuffix(u.Path, "/") {
+			dir = filepath.Dir(dir)
+		}
 	}
 
 	file, err := LocalOrNodeResolve(filePath, dir, resolver.build)
+
 	if err == nil {
 		info, err := os.Stat(file)
-		resolver.includeFiles = append(resolver.includeFiles, file)
 		if err == nil && info.IsDir() {
 			return resolver.CanonicalizeURL(file)
 		}
@@ -101,11 +104,10 @@ func (resolver *NodeModulesImportResolver) resolveDirectoryIndex(dirPath, baseDi
 }
 
 func (resolver *NodeModulesImportResolver) resolveFileVariations(filePath, dir string) (string, error) {
-	packagePath, fileName := filepath.Split(filePath)
 	
 	// Try with .scss extension if not already present
-	if !strings.HasSuffix(fileName, ".scss") {
-		fileWithExtension := filepath.Join(packagePath, fileName+".scss")
+	if !strings.HasSuffix(filePath, ".scss") {
+		fileWithExtension := filePath+".scss"
 		resolvedFile, err := LocalOrNodeResolve(fileWithExtension, dir, resolver.build)
 		if err == nil {
 			resolver.includeFiles = append(resolver.includeFiles, resolvedFile)
@@ -114,15 +116,19 @@ func (resolver *NodeModulesImportResolver) resolveFileVariations(filePath, dir s
 	}
 
 	// Try with _ prefix (partial file)
+	part, name := filepath.Split(filePath)
 	var targetFileName string
-	if strings.HasSuffix(fileName, ".scss") {
-		targetFileName = "_" + fileName
+	if strings.HasSuffix(name, ".scss") {
+		targetFileName = "_" + name
 	} else {
-		targetFileName = "_" + fileName + ".scss"
+		targetFileName = "_" + name + ".scss"
 	}
-	
-	fileWithPrefix := filepath.Join(packagePath, targetFileName)
-	resolvedFilePrefix, err := LocalOrNodeResolve(fileWithPrefix, dir, resolver.build)
+
+	if part == "" {
+		part = dir
+	}
+
+	resolvedFilePrefix, err := LocalOrNodeResolve(targetFileName, part, resolver.build)
 	if err == nil {
 		resolver.includeFiles = append(resolver.includeFiles, resolvedFilePrefix)
 		return "file://" + resolvedFilePrefix, nil
